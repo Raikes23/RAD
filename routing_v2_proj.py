@@ -194,37 +194,6 @@ def shortestPaths(graph: Graph, matrix: list):
                                 p["path"].append(aux_paths[a][b]["path"])
     return paths
 
-#Nodes: 14
-#Links: 21
-unweighted_matrix = [
-    [0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],  # Node 1: Seattle
-    [1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # Node 2: Palo Alto
-    [1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],  # Node 3: San Diego
-    [0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0],  # Node 4: Salt Lake City
-    [0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],  # Node 5: Boulder
-    [0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0],  # Node 6: Houston
-    [0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0],  # Node 7: Lincoln
-    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],  # Node 8: Champaign
-    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0],  # Node 9: Atlanta
-    [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],  # Node 10: Ann Arbor
-    [0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1],  # Node 11: Pittsburgh
-    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1],  # Node 12: College Park
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0],  # Node 13: Ithaca
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0],  # Node 14: Princeton
-]
-
-# Ensure matrix is unweighted
-matrix = ensure_unweighted(np.array(unweighted_matrix))
-
-# Calculate average degree, variance, and plot
-average_degree, degrees = calculate_average_node_degree(matrix)
-variance = calculate_degree_variance(degrees)
-
-print(f"Average Node Degree: {average_degree}")
-print(f"Variance of Node Degrees: {variance}")
-
-plot_degree_distribution(degrees)
-
 # Further operations remain the same
 
 def getPaths(graph: Graph, matrix: list):
@@ -620,6 +589,27 @@ matrix = [[0,10,10,30,0,0,0,0],
           [0,0,0,0,20,0,10,0]]
 
 
+
+
+#Nodes: 14
+#Links: 21
+unweighted_matrix = [
+    [0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],  # Node 1: Seattle
+    [1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # Node 2: Palo Alto
+    [1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],  # Node 3: San Diego
+    [0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0],  # Node 4: Salt Lake City
+    [0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],  # Node 5: Boulder
+    [0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0],  # Node 6: Houston
+    [0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0],  # Node 7: Lincoln
+    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],  # Node 8: Champaign
+    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0],  # Node 9: Atlanta
+    [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],  # Node 10: Ann Arbor
+    [0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1],  # Node 11: Pittsburgh
+    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1],  # Node 12: College Park
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0],  # Node 13: Ithaca
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0],  # Node 14: Princeton
+]   
+
 matrix_weighted = [
     [0, 1130.3, 1700.0, 0, 0, 0, 0, 2829.11, 0, 0, 0, 0, 0, 0],     # Node 1: Seattle
     [1130.3, 0, 693.67, 956.43, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],      # Node 2: Palo Alto
@@ -637,10 +627,33 @@ matrix_weighted = [
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 788.13, 452.18, 246.96, 0, 0]       # Node 14: Princeton
 ]
 
+# Ensure matrix is unweighted
+matrix = ensure_unweighted(np.array(unweighted_matrix))
 
+# Calculate average degree, variance, and plot
+average_degree, degrees = calculate_average_node_degree(matrix)
+variance = calculate_degree_variance(degrees)
 
+print(f"Average Node Degree: {average_degree}")
+print(f"Variance of Node Degrees: {variance}")
 
-matrix = unweighted_matrix
+plot_degree_distribution(degrees)
+
+# Calcular os caminhos mais curtos no grafo ponderado
+print("\n")
+print("Calculando caminhos mais curtos no grafo ponderado:")
+weighted_paths = getPaths(graph, matrix_weighted)
+for path in weighted_paths:
+    print(path)
+    print("\n")
+
+# Calcular os caminhos mais curtos no grafo não ponderado
+print("\nCalculando caminhos mais curtos no grafo não ponderado:")
+unweighted_paths = getPaths(graph, matrix)
+for path in unweighted_paths:
+    print(path)
+    print("\n")
+
 
 '''traffic = [[0, 10, 10, 10, 10, 10, 10, 10], 
            [10, 0, 1, 1, 1, 1, 1, 1], 
