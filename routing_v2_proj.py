@@ -247,17 +247,26 @@ def shortestPaths(graph: Graph, matrix: list):
                                     "path"]:
                                 p["path"].append(aux_paths[a][b]["path"])
     return paths
-
+########################################################################################################
+#                                  Função modificada
+########################################################################################################
 def countHops(paths: list):
     hops_matrix = []
 
     for path in paths:
         hops_row = []
         for p in path:
-            hops_row.append(len(min(p["path"], key=len)) - 1)
+            # Verificar se "path" é uma lista válida e contém listas de nós
+            if isinstance(p["path"], list) and all(isinstance(item, list) for item in p["path"]):
+                hops_row.append(len(min(p["path"], key=len)) - 1)
+            else:
+                hops_row.append(0)  # Valor padrão para casos inválidos
         hops_matrix.append(hops_row)
 
     return hops_matrix
+
+
+
 
 def create_traffic_matrix(matrix, traffic):
     matrix_size = len(matrix)
@@ -589,7 +598,9 @@ matrix = [[0,10,10,30,0,0,0,0],
           [0,0,0,0,20,0,10,0]]
 
 
-
+#####################################################################################################
+#                               Primeira fase
+#####################################################################################################
 
 #Nodes: 14
 #Links: 21
@@ -639,6 +650,9 @@ print(f"Variance of Node Degrees: {variance}")
 
 plot_degree_distribution(degrees)
 
+#########################################################################################################
+#                            Primiera alinea da Segunda fase
+#########################################################################################################
 # Calcular os caminhos mais curtos no grafo ponderado
 print("\n")
 print("Calculando caminhos mais curtos no grafo ponderado:")
@@ -653,6 +667,87 @@ unweighted_paths = getPaths(graph, matrix)
 for path in unweighted_paths:
     print(path)
     print("\n")
+
+#########################################################################################################
+#                             Segunda alinea da Segunda fase
+#########################################################################################################
+
+# Extração de hops e distâncias do grafo ponderado
+weighted_hops = []
+weighted_distances = []
+for path_set in weighted_paths:
+    for path in path_set:
+        if path["distance"] < float("Inf"):  # Ignorar caminhos desconectados
+            weighted_hops.append(len(path["path"]) - 1)
+            weighted_distances.append(path["distance"])
+
+# Geração de histogramas para o grafo ponderado
+plt.hist(weighted_hops, bins=range(min(weighted_hops), max(weighted_hops) + 2), edgecolor='black', align='left')
+plt.title("Número de Hops (Grafo Ponderado)")
+plt.xlabel("Número de Hops")
+plt.ylabel("Frequência")
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.show()
+
+plt.hist(weighted_distances, bins=20, edgecolor='black')
+plt.title("Distâncias (Grafo Ponderado)")
+plt.xlabel("Distância")
+plt.ylabel("Frequência")
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.show()
+
+# Extração de hops e distâncias do grafo não ponderado
+unweighted_hops = []
+unweighted_distances = []
+for path_set in unweighted_paths:
+    for path in path_set:
+        if path["distance"] < float("Inf"):  # Ignorar caminhos desconectados
+            unweighted_hops.append(len(path["path"]) - 1)
+            unweighted_distances.append(path["distance"])
+
+# Geração de histogramas para o grafo não ponderado
+plt.hist(unweighted_hops, bins=range(min(unweighted_hops), max(unweighted_hops) + 2), edgecolor='black', align='left')
+plt.title("Número de Hops (Grafo Não Ponderado)")
+plt.xlabel("Número de Hops")
+plt.ylabel("Frequência")
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.show()
+
+plt.hist(unweighted_distances, bins=20, edgecolor='black')
+plt.title("Distâncias (Grafo Não Ponderado)")
+plt.xlabel("Distância")
+plt.ylabel("Frequência")
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.show()
+
+#########################################################################################################
+#                             Terceira alinea da Segunda fase
+#########################################################################################################
+
+# Calcular a matriz de hops para o grafo ponderado
+hop_matrix = countHops(unweighted_paths)
+
+# Calcular o número médio de hops por demanda
+total_hops = np.sum(hop_matrix)
+total_traffic = np.sum(traffic)  # Matriz de tráfego já definida
+average_hops_per_demand = total_hops / total_traffic
+
+# Calcular o diâmetro da rede
+network_diameter = np.max(hop_matrix)
+
+# Estimação do número médio de hops
+N = len(matrix)  # Número de nós
+avg_hops_estimation = np.log(N) / np.log(average_degree)
+
+# Imprimir resultados
+print("\n=== Resultados da Terceira Alínea ===")
+print(f"Número médio de hops por demanda: {average_hops_per_demand}")
+print(f"Diâmetro da rede: {network_diameter}")
+print(f"Estimativa do número médio de hops: {avg_hops_estimation}")
+
+#########################################################################################################
+#                             Quarta alinea da Segunda fase
+#########################################################################################################
 
 
 '''traffic = [[0, 10, 10, 10, 10, 10, 10, 10], 
