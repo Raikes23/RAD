@@ -9,6 +9,7 @@ import copy
 import itertools
 import time
 import matplotlib.pyplot as plt
+from itertools import combinations
 
 # Class to represent a graph
 class Graph:
@@ -205,48 +206,6 @@ def getPaths(graph: Graph, matrix: list):
     return patths
 
 
-def shortestPaths(graph: Graph, matrix: list):
-    pairs = []
-    paths = []
-
-    #count = min([len([i for i in row if i > 0]) for row in matrix])
-    count = 2
-    for i in range(0, len(matrix)):
-        for j in range(i, len(matrix)):
-            if matrix[i][j] != 0:
-                pairs.append(f'{i + 1}-{j + 1}')
-
-    for i in range(len(matrix)):
-        if i > count:
-            break
-        combinationss = list(itertools.combinations(pairs, i))
-
-        for comb in combinationss:
-            aux_matrix = copy.deepcopy(matrix)
-
-            for pair in comb:
-                row, column = pair.split('-')
-                aux_matrix[int(row) - 1][int(column) - 1] = 0
-                aux_matrix[int(column) - 1][int(row) - 1] = 0
-
-            # print(f'Pair removed: {comb}')
-            # for row in range(len(np.array(aux_matrix))):
-            # print(aux_matrix[row])
-
-            if not (~np.array(aux_matrix).any(axis=0)).any():
-                aux_paths = getPaths(graph, aux_matrix)
-                if len(paths) == 0:
-                    paths = aux_paths
-                    for path in paths:
-                        for p in path:
-                            p["path"] = [p["path"]]
-                else:
-                    for a, path in enumerate(paths):
-                        for b, p in enumerate(path):
-                            if aux_paths[a][b]["distance"] == p["distance"] and aux_paths[a][b]["path"] not in p[
-                                    "path"]:
-                                p["path"].append(aux_paths[a][b]["path"])
-    return paths
 ########################################################################################################
 #                                  Função modificada
 ########################################################################################################
@@ -573,6 +532,126 @@ def check_diagonal_zero(matrix):
     diagonal = np.diagonal(matrix)
     return np.all(diagonal == 0)
 
+#####################################################################################################
+#                               Funções para alinea 4 da Segunda fase
+#####################################################################################################
+
+# Função para verificar componentes conectados
+def count_connected_components(matrix):
+    visited = set()
+
+    def dfs(node, visited):
+        visited.add(node)
+        for neighbor, connected in enumerate(matrix[node]):
+            if connected and neighbor not in visited:
+                dfs(neighbor, visited)
+
+    components = 0
+    for node in range(len(matrix)):
+        if node not in visited:
+            dfs(node, visited)
+            components += 1
+    return components
+
+# Node Connectivity
+def calculate_node_connectivity(matrix):
+    original_components = count_connected_components(matrix)
+    node_connectivity = len(matrix)
+
+    for node in range(len(matrix)):
+        reduced_matrix = np.delete(np.delete(matrix, node, axis=0), node, axis=1)
+        components = count_connected_components(reduced_matrix)
+        if components > original_components:
+            node_connectivity = min(node_connectivity, components - original_components)
+    return node_connectivity
+
+# Edge Connectivity
+def calculate_edge_connectivity(matrix):
+    original_components = count_connected_components(matrix)
+    edge_connectivity = np.inf
+
+    edges = [(i, j) for i in range(len(matrix)) for j in range(i + 1, len(matrix)) if matrix[i][j]]
+    for edge_set in combinations(edges, 1):  # 1 aresta por vez
+        test_matrix = matrix.copy()
+        for i, j in edge_set:
+            test_matrix[i][j] = test_matrix[j][i] = 0
+        components = count_connected_components(test_matrix)
+        if components > original_components:
+            edge_connectivity = min(edge_connectivity, len(edge_set))
+    return edge_connectivity
+
+#####################################################################################################
+#                               Funções para alinea 5 da Segunda fase
+#####################################################################################################
+# Função para verificar se x e y estão conectados
+def are_connected(matrix, x, y):
+    visited = set()
+
+    def dfs(node):
+        if node == y:
+            return True
+        visited.add(node)
+        for neighbor, connected in enumerate(matrix[node]):
+            if connected and neighbor not in visited:
+                if dfs(neighbor):
+                    return True
+        return False
+
+    return dfs(x)
+
+# Determinar o corte mínimo de nós
+def find_minimum_node_cut(matrix, x, y):
+    original_matrix = matrix.copy()
+    node_cut_set = []
+
+    for node in range(len(matrix)):
+        if node == x or node == y:
+            continue
+        reduced_matrix = np.delete(np.delete(matrix, node, axis=0), node, axis=1)
+        if not are_connected(reduced_matrix, x, y):
+            node_cut_set.append(node)
+
+    matrix[:] = original_matrix  # Restaurar a matriz original
+    return node_cut_set
+
+# Determinar o corte mínimo de arestas
+def find_minimum_edge_cut(matrix, x, y):
+    original_matrix = matrix.copy()
+    edge_cut_set = []
+
+    edges = [(i, j) for i in range(len(matrix)) for j in range(i + 1, len(matrix)) if matrix[i][j]]
+    for i, j in edges:
+        test_matrix = matrix.copy()
+        test_matrix[i][j] = test_matrix[j][i] = 0
+        if not are_connected(test_matrix, x, y):
+            edge_cut_set.append((i, j))
+
+    matrix[:] = original_matrix  # Restaurar a matriz original
+    return edge_cut_set
+
+#####################################################################################################
+#                               Funções para alinea 6 da Segunda fase
+#####################################################################################################
+# Encontrar o caminho de serviço e caminhos de backup entre x e y
+def find_service_and_backup_paths(paths, x, y):
+    service_path = None
+    backup_paths = []
+
+    # Filtrar os caminhos para x -> y
+    xy_paths = [p for p in paths[x] if p["destination"] == y + 1]
+
+    # Encontrar o caminho de serviço (menor distância)
+    if xy_paths:
+        service_path = min(xy_paths, key=lambda p: p["distance"])
+
+    # Encontrar os caminhos de backup
+    for path in xy_paths:
+        if path != service_path:
+            backup_paths.append(path)
+
+    return service_path, backup_paths
+#####################################################################################################
+
 graph = Graph()
 average_node_degree = []
 traffic = []
@@ -746,11 +825,60 @@ print(f"Diâmetro da rede: {network_diameter}")
 print(f"Estimativa do número médio de hops: {avg_hops_estimation}")
 
 #########################################################################################################
-#                             Quarta alinea da Segunda fase
+#                                 Quarta alinea da Segunda fase
 #########################################################################################################
 
+# Node Connectivity
+node_connectivity = calculate_node_connectivity(matrix)
+print(f"Node Connectivity: {node_connectivity}")
 
-'''traffic = [[0, 10, 10, 10, 10, 10, 10, 10], 
+# Edge Connectivity
+edge_connectivity = calculate_edge_connectivity(matrix)
+print(f"Edge Connectivity: {edge_connectivity}")
+
+# Relação entre os parâmetros
+print(f"Relação entre parâmetros:")
+print(f"Average Node Degree: {average_degree}")
+print(f"Node Connectivity <= Average Node Degree: {node_connectivity <= average_degree}")
+print(f"Edge Connectivity <= Node Connectivity: {edge_connectivity <= node_connectivity}")
+
+#########################################################################################################
+#                                 Quinta alinea da Segunda fase
+#########################################################################################################
+
+# Definir os nós x (Houston) e y (Seattle) pelo índice correspondente
+x = 5  # Houston (índice 5 na matriz de adjacência)
+y = 0  # Seattle (índice 0 na matriz de adjacência)
+
+# Encontrar o corte mínimo de nós
+node_cut_set = find_minimum_node_cut(matrix, x, y)
+print(f"Minimum x-y Node Cut Set between Houston and Seattle: {node_cut_set}")
+
+# Encontrar o corte mínimo de arestas
+edge_cut_set = find_minimum_edge_cut(matrix, x, y)
+print(f"Minimum x-y Edge Cut Set between Houston and Seattle: {edge_cut_set}")
+
+#########################################################################################################
+#                                 Sexta alinea da Segunda fase
+#########################################################################################################
+
+# Nós x e y (Houston e Seattle)
+x = 5  # Houston
+y = 0  # Seattle
+
+# Encontrar o caminho de serviço e os caminhos de backup
+service_path, backup_paths = find_service_and_backup_paths(unweighted_paths, x, y)
+
+# Exibir os resultados
+print("\n=== Caminho de Serviço e Caminhos de Backup ===")
+print(f"Caminho de Serviço entre Houston e Seattle: {service_path}")
+print("Caminhos de Backup:")
+for backup in backup_paths:
+    print(backup) 
+
+#########################################################################################################
+
+'''traffic = [[0, 10, 10, 10, 10, 10, 10, 10],
            [10, 0, 1, 1, 1, 1, 1, 1], 
            [10, 1, 0, 1, 1, 1, 1, 1], 
            [10, 1, 1, 0, 1, 1, 1, 1], 
