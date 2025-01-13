@@ -9,7 +9,12 @@ import copy
 import itertools
 import time
 import matplotlib.pyplot as plt
+import os
 from itertools import combinations
+
+import networkx as nx
+print("NetworkX version: {}".format(nx.__version__))
+
 
 # Class to represent a graph
 class Graph:
@@ -209,20 +214,19 @@ def getPaths(graph: Graph, matrix: list):
 ########################################################################################################
 #                                  Função modificada
 ########################################################################################################
-def countHops(paths: list):
-    hops_matrix = []
-
-    for path in paths:
-        hops_row = []
-        for p in path:
-            # Verificar se "path" é uma lista válida e contém listas de nós
-            if isinstance(p["path"], list) and all(isinstance(item, list) for item in p["path"]):
-                hops_row.append(len(min(p["path"], key=len)) - 1)
-            else:
-                hops_row.append(0)  # Valor padrão para casos inválidos
-        hops_matrix.append(hops_row)
-
-    return hops_matrix
+def countHops(paths: list): #return hop matrix
+    hop_matrix = np.zeros((len(paths), len(paths)))
+    for i in range(len(paths)):
+        for j in range(len(paths)):
+            if i == j:
+                continue
+            for path in paths[i]:
+                if path["destination"] == j + 1:
+                    hop_matrix[i][j] = len(path["path"]) - 1
+                    break
+    shape = hop_matrix.shape
+    print("shape",shape)   
+    return hop_matrix
 
 
 
@@ -554,18 +558,23 @@ def count_connected_components(matrix):
     return components
 
 # Node Connectivity
-def calculate_node_connectivity(matrix):
+""" def calculate_node_connectivity(matrix):
     original_components = count_connected_components(matrix)
-    node_connectivity = len(matrix)
+    min_cut = len(matrix)  # Initialize with the total number of nodes (worst case).
 
     for node in range(len(matrix)):
+        # Remove the current node (and its edges) to simulate its removal.
         reduced_matrix = np.delete(np.delete(matrix, node, axis=0), node, axis=1)
         components = count_connected_components(reduced_matrix)
+        
+        # If the graph becomes disconnected, count this node as part of the cut set.
         if components > original_components:
-            node_connectivity = min(node_connectivity, components - original_components)
-    return node_connectivity
+            min_cut = min(min_cut, 1)  # Removing a single node can disconnect the graph.
+    
+    return min_cut """
 
 # Edge Connectivity
+""" 
 def calculate_edge_connectivity(matrix):
     original_components = count_connected_components(matrix)
     edge_connectivity = np.inf
@@ -578,7 +587,41 @@ def calculate_edge_connectivity(matrix):
         components = count_connected_components(test_matrix)
         if components > original_components:
             edge_connectivity = min(edge_connectivity, len(edge_set))
-    return edge_connectivity
+    return edge_connectivity """
+
+def calculate_node_connectivity(matrix):
+    """
+    Calculate the node connectivity of a graph represented by an adjacency matrix.
+    """
+    G = nx.from_numpy_array(np.array(matrix))  # Use from_numpy_array instead
+    return nx.node_connectivity(G)
+
+def calculate_edge_connectivity(matrix):
+    """
+    Calculate the edge connectivity of a graph represented by an adjacency matrix.
+    """
+    G = nx.from_numpy_array(np.array(matrix))  # Use from_numpy_array instead
+    return nx.edge_connectivity(G)
+
+def calculate_average_degree(matrix):
+    """
+    Calculate the average node degree of a graph represented by an adjacency matrix.
+    """
+    degrees = [sum(row) for row in matrix]  # Sum each row for the degree of each node
+    return sum(degrees) / len(degrees)
+
+#####################################################################################################
+#                               Funções multiplica fator de distancia
+#####################################################################################################
+def multiply_matrix_by_0_95(matrix):
+    # Converte a lista de listas em um array numpy para manipulação eficiente
+    np_matrix = np.array(matrix)
+    
+    # Multiplica todos os elementos por 0.95
+    np_matrix = np_matrix * 0.95
+    
+    # Retorna a matriz resultante
+    return np_matrix
 
 #####################################################################################################
 #                               Funções para alinea 5 da Segunda fase
@@ -599,8 +642,9 @@ def are_connected(matrix, x, y):
 
     return dfs(x)
 
-# Determinar o corte mínimo de nós
+""" # Determinar o corte mínimo de nós
 def find_minimum_node_cut(matrix, x, y):
+    print("Matrix: ", matrix)
     original_matrix = matrix.copy()
     node_cut_set = []
 
@@ -612,9 +656,9 @@ def find_minimum_node_cut(matrix, x, y):
             node_cut_set.append(node)
 
     matrix[:] = original_matrix  # Restaurar a matriz original
-    return node_cut_set
+    return node_cut_set """
 
-# Determinar o corte mínimo de arestas
+""" # Determinar o corte mínimo de arestas
 def find_minimum_edge_cut(matrix, x, y):
     original_matrix = matrix.copy()
     edge_cut_set = []
@@ -627,7 +671,33 @@ def find_minimum_edge_cut(matrix, x, y):
             edge_cut_set.append((i, j))
 
     matrix[:] = original_matrix  # Restaurar a matriz original
-    return edge_cut_set
+    return edge_cut_set """
+
+def find_minimum_node_cut(matrix, x, y):
+    """
+    Find the minimum node cut set between nodes x and y in a graph represented by an adjacency matrix.
+    """
+    # Create the graph from the adjacency matrix
+    G = nx.from_numpy_array(np.array(matrix))
+    
+    # Find and return the minimum node cut between x and y
+    node_cut = nx.minimum_node_cut(G, s=x, t=y)
+
+    # Convert to one-based indexing for output
+    return {node + 1 for node in node_cut}
+
+def find_minimum_edge_cut(matrix, x, y):
+    """
+    Find the minimum edge cut set between nodes x and y in a graph represented by an adjacency matrix.
+    """
+    # Create the graph from the adjacency matrix
+    G = nx.from_numpy_array(np.array(matrix))
+    
+    # Find and return the minimum edge cut between x and y
+    edge_cut = nx.minimum_edge_cut(G, s=x, t=y)
+
+    # Convert to one-based indexing for output
+    return {(u + 1, v + 1) for u, v in edge_cut}
 
 #####################################################################################################
 #                               Funções para alinea 6 da Segunda fase
@@ -650,6 +720,57 @@ def find_service_and_backup_paths(paths, x, y):
             backup_paths.append(path)
 
     return service_path, backup_paths
+
+def find_service_and_backup_paths(paths, x, y):
+    """
+    Find the service path and backup paths between two nodes in the network.
+
+    Parameters:
+    paths (list): A list of shortest paths between nodes.
+    x (int): Index of the source node.
+    y (int): Index of the destination node.
+
+    Returns:
+    tuple: A tuple containing the service path and a list of backup paths.
+    """
+    # Initialize the service path and backup paths
+    service_path = None
+    backup_paths = []
+
+    x = x +1
+    y = y +1
+
+    # Convert the list of paths to a graph representation for easier pathfinding
+    graph = nx.Graph()
+    for path_set in paths:
+        for path_info in path_set:
+            path = path_info["path"]
+            distance = path_info["distance"]
+            for i in range(len(path) - 1):
+                graph.add_edge(path[i], path[i + 1], weight=distance)
+
+    try:
+        # Get the shortest path (service path) between x and y
+        #print the graph
+        print(graph)
+        
+        service_path = nx.shortest_path(graph, source=x, target=y, weight='weight')
+
+        # Remove the service path edges to find backup paths
+        graph.remove_edges_from(zip(service_path[:-1], service_path[1:]))
+
+        # Find alternative paths (backup paths)
+        for _ in range(3):  # Limit to 3 backup paths for simplicity
+            try:
+                backup_path = nx.shortest_path(graph, source=x, target=y, weight='weight')
+                backup_paths.append(backup_path)
+                graph.remove_edges_from(zip(backup_path[:-1], backup_path[1:]))
+            except nx.NetworkXNoPath:
+                break
+    except nx.NetworkXNoPath:
+        pass
+
+    return service_path, backup_paths
 #####################################################################################################
 
 graph = Graph()
@@ -667,14 +788,24 @@ MAX_LINK_CAP = 999999
 # one unit of traffic.
 #TEST NETWORK
 MAX_LINK_CAP = 5
-matrix = [[0,10,10,30,0,0,0,0],
-          [10,0,10,0,0,30,20,0],
-          [10,10,0,10,10,0,40,0],
-          [30,0,10,0,0,0,0,0],
-          [0,0,10,0,0,0,0,20],
-          [0,30,0,0,0,0,10,0],
-          [0,20,40,0,0,10,0,10],
-          [0,0,0,0,20,0,10,0]]
+
+# Criar matriz de tráfego baseada nos valores X, Y, Z
+traffic = [
+    [0, 29, 46, 55, 29, 46, 55, 29, 46, 55, 29, 46, 55, 29],
+    [29, 0, 29, 46, 55, 29, 46, 55, 29, 46, 55, 29, 46, 55],
+    [46, 29, 0, 29, 46, 0, 29, 0, 55, 29, 0, 55, 0, 0],
+    [55, 46, 29, 0,	29,	46,	55,	0,	0,	55,	29,	0,	55,	0],
+    [29, 0, 46,	29,	0,	29,	46,	55,	0, 46,	0,	0, 0, 55],
+    [46, 29, 0, 46,	29,	0,	29,	46,	55,	29,	46,	0,	29,	0],
+    [0,	0,	29,	55,	46,	29,	0,	29,	55,	29,	46,	0,	55,	29],
+    [29,	55,	0,	0,	55, 46,	29,	0,	29,	55,	29,	0,	55,	0],
+    [46,	29,	55,	0,	0,	55,	46,	29,	0,	29,	55, 29,	0,	46],
+    [0,	46,	29,	55,	46,	29, 55,	46,	29,	0,	29,	55,	46,	29],
+    [29,	55,	0,	29,	0,	46,	29,	55,	46,	29,	0,	29,	55,	0],
+    [	0,	0,	55,	0,	0,	0,	0,	29,	55,	46,	29,	0,	29,	46],
+    [0,	0,	0,	55,	0,	29,	55,	0,	29,	55,	46,	0,	29,	0],
+    [0,	55,	0,	0,	55,	0,	29,	55,	46,	29,	55,	46,	46,	0]
+]
 
 
 #####################################################################################################
@@ -717,8 +848,11 @@ matrix_weighted = [
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 788.13, 452.18, 246.96, 0, 0]       # Node 14: Princeton
 ]
 
+matrix_weighted = multiply_matrix_by_0_95(matrix_weighted)
+
 # Ensure matrix is unweighted
 matrix = ensure_unweighted(np.array(unweighted_matrix))
+print(matrix)
 
 # Calculate average degree, variance, and plot
 average_degree, degrees = calculate_average_node_degree(matrix)
@@ -737,14 +871,14 @@ print("\n")
 print("Calculando caminhos mais curtos no grafo ponderado:")
 weighted_paths = getPaths(graph, matrix_weighted)
 for path in weighted_paths:
-    print(path)
+    #print(path)
     print("\n")
 
 # Calcular os caminhos mais curtos no grafo não ponderado
 print("\nCalculando caminhos mais curtos no grafo não ponderado:")
 unweighted_paths = getPaths(graph, matrix)
 for path in unweighted_paths:
-    print(path)
+    #print(path)
     print("\n")
 
 #########################################################################################################
@@ -762,16 +896,16 @@ for path_set in weighted_paths:
 
 # Geração de histogramas para o grafo ponderado
 plt.hist(weighted_hops, bins=range(min(weighted_hops), max(weighted_hops) + 2), edgecolor='black', align='left')
-plt.title("Número de Hops (Grafo Ponderado)")
-plt.xlabel("Número de Hops")
-plt.ylabel("Frequência")
+plt.title("Hop Count (Weighted Graph)")
+plt.xlabel("Number of Hops")
+plt.ylabel("Frequency")
 plt.grid(axis='y', linestyle='--', alpha=0.7)
 plt.show()
 
 plt.hist(weighted_distances, bins=20, edgecolor='black')
-plt.title("Distâncias (Grafo Ponderado)")
-plt.xlabel("Distância")
-plt.ylabel("Frequência")
+plt.title("Distance in Kilometers (Weighted Graph)")
+plt.xlabel("Distance (km)")
+plt.ylabel("Frequency")
 plt.grid(axis='y', linestyle='--', alpha=0.7)
 plt.show()
 
@@ -781,21 +915,25 @@ unweighted_distances = []
 for path_set in unweighted_paths:
     for path in path_set:
         if path["distance"] < float("Inf"):  # Ignorar caminhos desconectados
-            unweighted_hops.append(len(path["path"]) - 1)
-            unweighted_distances.append(path["distance"])
+            num_hops = len(path["path"]) - 1
+            unweighted_hops.append(num_hops)
+            unweighted_distances.append(num_hops)  # Ensure this is the number of hops
+
 
 # Geração de histogramas para o grafo não ponderado
 plt.hist(unweighted_hops, bins=range(min(unweighted_hops), max(unweighted_hops) + 2), edgecolor='black', align='left')
-plt.title("Número de Hops (Grafo Não Ponderado)")
-plt.xlabel("Número de Hops")
-plt.ylabel("Frequência")
+plt.xticks(range(min(unweighted_hops), max(unweighted_hops) + 1))  # Ensure integer ticks
+plt.title("Hop Count (Unweighted Graph)")
+plt.xlabel("Number of Hops")
+plt.ylabel("Frequency")
 plt.grid(axis='y', linestyle='--', alpha=0.7)
 plt.show()
 
-plt.hist(unweighted_distances, bins=20, edgecolor='black')
-plt.title("Distâncias (Grafo Não Ponderado)")
-plt.xlabel("Distância")
-plt.ylabel("Frequência")
+plt.hist(unweighted_distances, bins=range(min(unweighted_distances), max(unweighted_distances) + 2), edgecolor='black', align='left')
+plt.xticks(range(min(unweighted_distances), max(unweighted_distances) + 1))  # Ensure integer ticks
+plt.title("Distance in Kilometers (Unweighted Graph)")
+plt.xlabel("Distance (hops)")
+plt.ylabel("Frequency")
 plt.grid(axis='y', linestyle='--', alpha=0.7)
 plt.show()
 
@@ -808,8 +946,15 @@ hop_matrix = countHops(unweighted_paths)
 
 # Calcular o número médio de hops por demanda
 total_hops = np.sum(hop_matrix)
-total_traffic = np.sum(traffic)  # Matriz de tráfego já definida
-average_hops_per_demand = total_hops / total_traffic
+n_nodes = len(matrix)
+
+number_demands = n_nodes * (n_nodes - 1)
+average_hops_per_demand = total_hops / number_demands
+print("\n=== Auxiliar ===")
+print(f"Total Hops: {total_hops}")
+print(f"Number of Nodes: {n_nodes}")
+print(f"Number of Demands N*(N-1): {number_demands}")
+
 
 # Calcular o diâmetro da rede
 network_diameter = np.max(hop_matrix)
@@ -826,19 +971,18 @@ print(f"Estimativa do número médio de hops: {avg_hops_estimation}")
 
 #########################################################################################################
 #                                 Quarta alinea da Segunda fase
-#########################################################################################################
-
-# Node Connectivity
+########################################################################################################## Node Connectivity
 node_connectivity = calculate_node_connectivity(matrix)
-print(f"Node Connectivity: {node_connectivity}")
 
 # Edge Connectivity
 edge_connectivity = calculate_edge_connectivity(matrix)
-print(f"Edge Connectivity: {edge_connectivity}")
 
 # Relação entre os parâmetros
+print("\n=== Resultados da Quarta Alínea ===")
 print(f"Relação entre parâmetros:")
 print(f"Average Node Degree: {average_degree}")
+print(f"Node Connectivity: {node_connectivity}")
+print(f"Edge Connectivity: {edge_connectivity}")
 print(f"Node Connectivity <= Average Node Degree: {node_connectivity <= average_degree}")
 print(f"Edge Connectivity <= Node Connectivity: {edge_connectivity <= node_connectivity}")
 
@@ -852,10 +996,12 @@ y = 0  # Seattle (índice 0 na matriz de adjacência)
 
 # Encontrar o corte mínimo de nós
 node_cut_set = find_minimum_node_cut(matrix, x, y)
-print(f"Minimum x-y Node Cut Set between Houston and Seattle: {node_cut_set}")
 
 # Encontrar o corte mínimo de arestas
 edge_cut_set = find_minimum_edge_cut(matrix, x, y)
+
+print("\n=== Resultados da Quinta Alínea ===")
+print(f"Minimum x-y Node Cut Set between Houston and Seattle: {node_cut_set}")
 print(f"Minimum x-y Edge Cut Set between Houston and Seattle: {edge_cut_set}")
 
 #########################################################################################################
@@ -875,19 +1021,251 @@ print(f"Caminho de Serviço entre Houston e Seattle: {service_path}")
 print("Caminhos de Backup:")
 for backup in backup_paths:
     print(backup) 
-
 #########################################################################################################
 
-'''traffic = [[0, 10, 10, 10, 10, 10, 10, 10],
-           [10, 0, 1, 1, 1, 1, 1, 1], 
-           [10, 1, 0, 1, 1, 1, 1, 1], 
-           [10, 1, 1, 0, 1, 1, 1, 1], 
-           [10, 1, 1, 1, 0, 1, 1, 1], 
-           [10, 1, 1, 1, 1, 0, 1, 1], 
-           [10, 1, 1, 1, 1, 1, 0, 1], 
-           [10, 1, 1, 1, 1, 1, 1, 0]]
-'''
 
+
+#########################################################################################################
+#                                 Third phase
+#########################################################################################################
+
+
+# Parameters for our network (Group 15)
+X, Y, Z = 29, 46, 55
+
+traffic_matrix = [
+    [0, X, Y, Z, X, Y, 0, X, Y, 0, X, 0, 0, 0], # Node 1 -> Seattle
+    [X, 0, X, Y, 0, X, 0, Z, X, Y, Z, 0, 0, Z], # Node 2 -> Palo Alto
+    [Y, X, 0, X, Y, 0, X, 0, Z, X, 0, Z, 0, 0], # Node 3 -> San Diego
+    [Z, Y, X, 0, X, Y, Z, 0, 0, Z, X, 0, Z, 0], # Node 4 -> Salt Lake City
+    [X, 0, Y, X, 0, X, Y, Z, 0, Y, 0, 0, 0, Z], # Node 5 -> Boulder
+    [Y, X, 0, Y, X, 0, X, Y, Z, X, Y, 0, X, 0], # Node 6 -> Houston
+    [0, 0, X, Z, Y, X, 0, X, Y, Z, X, 0, Z, X], # Node 7 -> Lincoln
+    [X, Z, 0, 0, Z, Y, X, 0, X, Y, Z, X, 0, Z], # Node 8 -> Champaign
+    [Y, X, Z, 0, 0, Z, Y, X, 0, X, Y, Z, X, Y], # Node 9 -> Atlanta
+    [0, Y, X, Z, Y, X, Z, Y, X, 0, X, Y, Z, X], # Node 10 -> Ann Arbor
+    [X, Z, 0, X, 0, Y, X, Z, Y, X, 0, X, Y, Z], # Node 11 -> Pittsburgh
+    [0, 0, Z, 0, 0, 0, 0, X, Z, Y, X, 0, X, Y], # Node 12 -> College Park
+    [0, 0, 0, Z, 0, X, Z, 0, X, Z, Y, X, 0, X], # Node 13 -> Ithaca
+    [0, Z, 0, 0, Z, 0, X, Z, Y, X, Z, Y, Y, 0], # Node 14 -> Princeton
+]
+
+#### Funcões auxiliares ####
+
+def remove_link(matrix, i, j):
+    """
+    Remove a link between nodes i and j in the adjacency matrix.
+    """
+    matrix[i][j] = matrix[j][i] = 0
+    return matrix
+
+def calculate_demand_matrix(matrix):
+    """
+    Convert the traffic matrix into a demand matrix as a list of (source, destination, traffic) tuples.
+    """
+    demand_matrix = np.zeros_like(matrix)
+    for i in range(len(matrix)):
+        for j in range(len(matrix[i])):
+            if matrix[i][j] > 0:  # Include only non-zero demands
+                demand_matrix[i][j] = 1
+    return demand_matrix
+
+#### Primeira alinea ####
+
+#remove link Colege Pk-Princeton from the matrix (physical topology)
+x = 12 - 1  # College Park
+y = 14 - 1  # Princeton
+
+modified_matrix = remove_link(matrix_weighted, x, y)
+
+demand_matrix = calculate_demand_matrix(traffic)
+
+#Traffic
+print("Traffic Matrix:")
+print(traffic)
+
+#Demand
+print("\nDemand Matrix:")
+print(demand_matrix)
+
+
+
+#### Segunda alinea ####
+
+# Visualize and save the link loads
+def visualize_link_loads(link_loads, strategy_name, metric_name, output_dir="output"):
+    """
+    Create a bar chart to visualize link loads and save it to a file.
+    
+    Parameters:
+    - link_loads: np.ndarray, the link load matrix
+    - strategy_name: str, the name of the sorting strategy
+    - metric_name: str, the name of the metric used
+    - output_dir: str, directory where the chart will be saved
+    """
+    os.makedirs(output_dir, exist_ok=True)  # Ensure output directory exists
+
+    plt.figure(figsize=(12, 6))
+    plt.bar(range(len(link_loads.flatten())), link_loads.flatten(), color='blue', alpha=0.7)
+    plt.title(f"Link Loads ({metric_name.capitalize()} - {strategy_name.capitalize()})")
+    plt.xlabel("Link Index")
+    plt.ylabel("Load (Gb/s)")
+
+    # Save the chart
+    file_name = f"link_loads_{metric_name}_{strategy_name}.png"
+    file_path = os.path.join(output_dir, file_name)
+    plt.savefig(file_path, format="png", dpi=300)
+
+    plt.show()
+    print(f"Chart saved to {file_path}")
+
+import os
+import matplotlib.pyplot as plt
+import numpy as np
+
+def visualize_link_loads_h(link_loads, strategy_name, metric_name, output_dir="output", top_n=None):
+    """
+    Create a horizontal bar chart to visualize non-zero link loads and save it to a file.
+    
+    Parameters:
+    - link_loads: np.ndarray, the link load matrix
+    - strategy_name: str, the name of the sorting strategy
+    - metric_name: str, the name of the metric used
+    - output_dir: str, directory where the chart will be saved
+    - top_n: int, the number of top links to display (optional)
+    """
+    os.makedirs(output_dir, exist_ok=True)  # Ensure output directory exists
+
+    # Generate node IDs
+    node_ids = [(i+1, j+1) for i in range(link_loads.shape[0]) for j in range(link_loads.shape[1])]
+    
+    # Filter links with load != 0
+    non_zero_indices = np.where(link_loads.flatten() != 0)[0]
+    non_zero_loads = link_loads.flatten()[non_zero_indices]
+    non_zero_node_ids = [f"{node_ids[i][0]}-{node_ids[i][1]}" for i in non_zero_indices]
+    
+    # Sort by load (descending) if top_n is specified
+    if top_n:
+        sorted_indices = np.argsort(non_zero_loads)[::-1][:top_n]
+        non_zero_loads = non_zero_loads[sorted_indices]
+        non_zero_node_ids = [non_zero_node_ids[i] for i in sorted_indices]
+
+    # Create horizontal bar chart
+    plt.figure(figsize=(12, 12))  # Adjust figure height dynamically
+    plt.bar(non_zero_node_ids, non_zero_loads, color='blue', alpha=0.7)
+    plt.title(f"Link Loads ({metric_name.capitalize()} - {strategy_name.capitalize()})", fontsize=30)
+    plt.xlabel("Load (Gb/s)", fontsize=16)
+    plt.ylabel("Link (Node IDs)", fontsize=16)
+    plt.xticks(fontsize=16, rotation=60)  # Rotate x-axis labels for better readability
+    plt.yticks(fontsize=20)  # Reduce font size for labels
+
+    # Set x-axis range
+    plt.ylim(0, 750)
+
+    # Save the chart
+    file_name = f"link_loads_{metric_name}_{strategy_name}.png"
+    file_path = os.path.join(output_dir, file_name)
+    plt.tight_layout()
+    plt.savefig(file_path, format="png", dpi=300)
+
+    plt.show()
+    print(f"Chart saved to {file_path}")
+
+
+
+# Compute shortest paths using a given metric
+def compute_shortest_paths(graph, metric="hops"):
+    """
+    Compute shortest paths for all node pairs using Dijkstra's algorithm.
+    """
+    paths = {}
+    for source in range(len(graph)):
+        for target in range(len(graph)):
+            if source != target:
+                if metric == "hops":
+                    # Find all shortest paths without considering edge weights
+                    paths[(source, target)] = list(nx.all_shortest_paths(graph, source, target, weight=None))
+                elif metric == "distance":
+                    # Find all shortest paths considering edge weights
+                    paths[(source, target)] = list(nx.all_shortest_paths(graph, source, target, weight="weight"))
+    return paths
+
+# Compute link loads using routing strategies with tie-breaking
+def compute_link_loads_with_tie_breaking(graph, traffic_matrix, paths, sorting_strategy, link_loads):
+    """
+    Compute link loads for a given sorting strategy and traffic demands, considering tie-breaking.
+    """
+    demands = [(i, j, traffic_matrix[i][j]) for i in range(len(traffic_matrix)) for j in range(len(traffic_matrix[i])) if traffic_matrix[i][j] > 0]
+
+    # Sort demands based on the strategy
+    if sorting_strategy == "shortest-first":
+        demands.sort(key=lambda x: len(paths[(x[0], x[1])]))  # Shortest paths first
+        print("Shortest paths first")
+        print(demands)
+    elif sorting_strategy == "longest-first":
+        demands.sort(key=lambda x: len(paths[(x[0], x[1])]), reverse=True)  # Longest paths first
+        print("Longest paths first")
+        print(demands)
+    elif sorting_strategy == "largest-first":
+        demands.sort(key=lambda x: x[2], reverse=True)  # Largest traffic first
+        print("Largest traffic first")
+        print(demands)
+
+    # Route the demands considering tie-breaking
+    for (source, target, traffic) in demands:
+        all_paths = paths[(source, target)]  # All possible paths for the source-target pair
+        best_path = None
+        min_most_loaded_link = float("inf")
+
+        # Tie-breaking: Choose the path that minimizes the load on the most loaded link
+        for path in all_paths:
+            trial_load = link_loads.copy()
+            for u, v in zip(path[:-1], path[1:]):  # Simulate routing traffic
+                trial_load[u][v] += traffic
+            most_loaded_link = np.max(trial_load)
+            if most_loaded_link < min_most_loaded_link:
+                min_most_loaded_link = most_loaded_link
+                best_path = path
+
+        # Route traffic on the best path
+        for u, v in zip(best_path[:-1], best_path[1:]):
+            link_loads[u][v] += traffic
+
+    return link_loads
+
+# Main routine for solving the routing problem
+def solve_uncapacitated_routing(physical_matrix, traffic_matrix, strategies, metrics):
+    """
+    Solve the uncapacitated routing problem for the provided strategies and metrics.
+    """
+    # Convert physical topology to graph
+    physical_graph = nx.from_numpy_array(np.array(physical_matrix), create_using=nx.DiGraph)
+
+    for metric in metrics:
+        paths = compute_shortest_paths(physical_graph, metric=metric)
+        for strategy in strategies:
+            link_loads = np.zeros_like(physical_matrix)
+            link_loads = compute_link_loads_with_tie_breaking(physical_graph, traffic_matrix, paths, strategy, link_loads)
+            #visualize_link_loads(link_loads, strategy, metric)
+            visualize_link_loads_h(link_loads, strategy, metric)
+
+# Solve the problem
+solve_uncapacitated_routing(
+    physical_matrix=modified_matrix,
+    traffic_matrix=traffic_matrix,
+    strategies=["shortest-first", "longest-first", "largest-first"],
+    metrics=["hops", "distance"]
+)
+        
+exit()
+
+#### Terceira alinea ####
+
+
+
+
+
+#########################################################################################################
 
 #CESNET
 '''matrix = [[0,226.07,334.4,0,0,0,274.08],
@@ -911,7 +1289,7 @@ for backup in backup_paths:
 sorting_order = "shortest"
 #sorting_order = "longest"
 #sorting_order = "largest"
-
+x
 #-------------------------DETERMINATION OF NETWORK PARAMETERS-----------------------------
 
 matrix_np = np.array(matrix,dtype=float)
